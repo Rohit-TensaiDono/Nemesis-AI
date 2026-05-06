@@ -1,0 +1,37 @@
+# Models — never push these, too large
+models/
+core/model/
+*.gguf
+*.bin
+*.safetensors
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Runtime data — personal, stays local
+nemesis_memory.json
+*.log
+*.sqlite
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

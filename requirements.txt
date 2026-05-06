@@ -1,0 +1,9 @@
+# Nemesis Phase 1 requirements
+# Install with: pip install -r requirements.txt
+
+# Core inference — pre-built CUDA 12.6 wheel
+# pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu126
+llama-cpp-python==0.3.22
+
+# Utilities
+colorama==0.4.6
