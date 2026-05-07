@@ -1,0 +1,32 @@
+# Never copy these into the Docker image
+
+# Model files — mounted as volume at runtime
+core/model/
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# Python environment — rebuilt inside container
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime data
+nemesis_memory.json
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Dev
+.vscode/
+.idea/
+.env

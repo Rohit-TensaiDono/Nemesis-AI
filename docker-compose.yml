@@ -1,0 +1,39 @@
+# ============================================================
+#  NEMESIS — docker-compose.yml
+#  Run with: docker compose up
+# ============================================================
+
+version: '3.8'
+
+services:
+  nemesis:
+    build: .
+    image: nemesis-ai:latest
+    container_name: nemesis
+
+    # GPU access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    # Mount model folder from host — model never goes in the image
+    volumes:
+      - ./core/model:/nemesis/core/model
+
+      # Memory persists between container restarts
+      - ./nemesis_memory.json:/nemesis/nemesis_memory.json
+
+    # Environment overrides — change model here if needed
+    environment:
+      - NEMESIS_MODEL_PATH=/nemesis/core/model/dolphin-2.9.2-qwen2-7b-Q3_K_M.gguf
+      - PYTHONUNBUFFERED=1
+
+    # Interactive terminal for CLI
+    stdin_open: true
+    tty: true
+
+    restart: unless-stopped
