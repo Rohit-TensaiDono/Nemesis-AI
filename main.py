@@ -7,18 +7,20 @@ import sys
 import os
 from datetime import datetime
 
-# Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.brain       import NemesisBrain
-from core.memory      import NemesisMemory
-from core.personality import get_system_prompt
-from core.router      import route, build_cot_prompt, format_routing_info
-from core.language    import set_hindi_percent, get_language_label, detect_input_language
-from config           import MASTER_NAME, NEMESIS_NAME
+from core.brain          import NemesisBrain
+from core.memory         import NemesisMemory
+from core.prompt_manager import (
+    build_system_prompt, detect_and_apply_edit,
+    get_current_name, get_current_master_address, get_hindi_percent
+)
+from core.router         import route, build_cot_prompt, format_routing_info
+from core.language       import detect_input_language
 
 
-# ── Helpers ───────────────────────────────────────────────────
+DEBUG_MODE = False
+
 
 def get_time_of_day() -> str:
     h = datetime.now().hour
@@ -29,15 +31,12 @@ def get_time_of_day() -> str:
 
 
 def handle_command(text: str, memory: NemesisMemory) -> bool:
-    """
-    Handle special CLI commands. Returns True if handled.
-    These won't be needed in the GUI — just for CLI phase.
-    """
     cmd = text.strip().lower()
 
     if cmd in ("/exit", "/quit", "/bye"):
         memory.save()
-        print(f"\nNemesis: Until next time, {MASTER_NAME}.")
+        name = get_current_master_address()
+        print(f"\nNemesis: Until next time, {name}.")
         sys.exit(0)
 
     if cmd == "/clear":
@@ -70,9 +69,10 @@ def handle_command(text: str, memory: NemesisMemory) -> bool:
 
     if cmd.startswith("/hindi "):
         try:
+            from core.prompt_manager import save_field
             pct = int(cmd.split("/hindi ")[1].strip())
-            set_hindi_percent(pct)
-            print(f"[Language] Now: {get_language_label()}")
+            save_field("LANGUAGE", "hindi_percent", str(pct))
+            print(f"[Language] Hindi set to {pct}%")
         except ValueError:
             print("[Language] Usage: /hindi 0-100")
         return True
@@ -84,7 +84,6 @@ def handle_command(text: str, memory: NemesisMemory) -> bool:
         return True
 
     if cmd.startswith("/meet "):
-        # Usage: /meet Aryan friend
         parts = cmd[len("/meet "):].strip().split()
         if len(parts) >= 2:
             name = parts[0].capitalize()
@@ -102,51 +101,61 @@ def handle_command(text: str, memory: NemesisMemory) -> bool:
         return True
 
     if cmd == "/debug":
-        # Toggle debug mode
         global DEBUG_MODE
         DEBUG_MODE = not DEBUG_MODE
         print(f"[Debug] {'ON' if DEBUG_MODE else 'OFF'}")
         return True
 
+    if cmd == "/prompt":
+        # Show current prompt.txt
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompt.txt")
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            print(f.read())
+        return True
+
     if cmd == "/help":
         print("""
   Commands:
-    /hindi 0-100     set Hindi percentage (0=English, 100=Hindi)
-    /remember <fact> store a fact about yourself
-    /meet <name> <rel> introduce someone to Nemesis
-    /track <task>    add a tracking task
-    /memory          show memory state
-    /tasks           show pending tasks
-    /people          show known people
-    /clear           clear session memory
-    /debug           toggle routing debug info
-    /help            this menu
-    /exit            goodbye
+    /hindi 0-100       set Hindi percentage
+    /remember <fact>   store a fact about yourself
+    /meet <name> <rel> introduce someone
+    /track <task>      add a watcher task
+    /memory            show memory state
+    /tasks             show pending tasks
+    /people            show known people
+    /prompt            show current prompt.txt
+    /clear             clear session memory
+    /debug             toggle routing debug info
+    /help              this menu
+    /exit              goodbye
+
+  Identity commands (say naturally, no slash needed):
+    "call me [name]"
+    "your name is [name]"
+    "be more gentle / formal / casual"
+    "set hindi to 60%"
+    "speak more hindi / more english"
         """)
         return True
 
     return False
 
 
-# ── Main loop ─────────────────────────────────────────────────
-
-DEBUG_MODE = False
-
-
 def main():
+    nemesis_name = get_current_name()
+    master_addr  = get_current_master_address()
+
     print(f"""
 ╔══════════════════════════════════════════╗
 ║           N E M E S I S                  ║
-║        Your butler awaits, My Lord.      ║
-║     Type /help for commands.             ║
+║     Your butler awaits, {master_addr:<16}║
 ╚══════════════════════════════════════════╝
     """)
 
-    # Boot up
     memory = NemesisMemory()
     brain  = NemesisBrain()
 
-    print(f"[Language] {get_language_label()}")
+    print(f"[Language] Hindi {get_hindi_percent()}% / English {100 - get_hindi_percent()}%")
     print(f"[Memory]   {memory}")
     print()
 
@@ -155,40 +164,43 @@ def main():
             user_input = input("Lord: ").strip()
         except (KeyboardInterrupt, EOFError):
             memory.save()
-            print(f"\nNemesis: Until next time, {MASTER_NAME}.")
+            print(f"\n{nemesis_name}: Until next time, {master_addr}.")
             break
 
         if not user_input:
             continue
 
-        # Handle CLI commands
+        # CLI commands
         if user_input.startswith("/"):
             handle_command(user_input, memory)
             continue
 
-        # ── Route the request ──────────────────────────────
-        decision  = route(user_input, local_load=0.3)
+        # ── Check for identity edit commands ──────────────
+        edit_result = detect_and_apply_edit(user_input)
+        if edit_result:
+            print(edit_result)
+            # Reload name/address after edit
+            nemesis_name = get_current_name()
+            master_addr  = get_current_master_address()
+            # Still let Nemesis respond naturally to the command
+            # (don't continue — fall through to response)
+
+        # ── Route ─────────────────────────────────────────
+        decision    = route(user_input, local_load=0.3)
+        prompt_text = build_cot_prompt(user_input, decision["cot_depth"])
 
         if DEBUG_MODE:
             print(format_routing_info(decision))
 
-        # Wrap with CoT if needed
-        prompt_text = build_cot_prompt(user_input, decision["cot_depth"])
-
         # ── Build context ──────────────────────────────────
-        time_of_day   = get_time_of_day()
+        time_of_day    = get_time_of_day()
         memory_context = memory.build_context_string()
-
-        # Detect input language to inform response
-        input_lang = detect_input_language(user_input)
-
-        system_prompt = get_system_prompt(
-            user_state="normal",      # Phase 3 will feed real mood here
-            people_present=None,      # Phase 3 will feed cam data here
+        system_prompt  = build_system_prompt(
+            user_state="normal",
+            people_present=None,
             time_of_day=time_of_day
         )
 
-        # Inject memory context into system prompt if available
         if memory_context:
             system_prompt += f"\n\nCONTEXT FROM MEMORY:\n{memory_context}"
 
@@ -200,11 +212,10 @@ def main():
             user_message=prompt_text
         )
 
-        # ── Store in memory ────────────────────────────────
-        memory.add_turn("user",      user_input)   # store original, not CoT-wrapped
+        # ── Store ──────────────────────────────────────────
+        memory.add_turn("user",      user_input)
         memory.add_turn("assistant", response)
 
-        # Auto-save every 5 turns
         if len(memory.conversation) % 10 == 0:
             memory.save()
 
