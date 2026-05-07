@@ -35,3 +35,8 @@ nemesis_memory.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+
+*.gguf
+*.bin
+*.safetensors

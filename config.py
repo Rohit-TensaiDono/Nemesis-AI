@@ -28,7 +28,7 @@ MAX_HISTORY  = 20       # conversation turns to keep in context
 MEMORY_FILE  = "nemesis_memory.json"
 
 # ── Personality ──────────────────────────────────────────────
-MASTER_NAME  = "My Lord"  # primary address — alternates with "Sir" based on context
+MASTER_NAME  = "Lord"  # primary address — alternates with "Sir" based on context
 NEMESIS_NAME = "Nemesis"
 
 # ── Router thresholds ────────────────────────────────────────
