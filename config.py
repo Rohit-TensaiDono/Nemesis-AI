@@ -13,11 +13,11 @@ MODEL_PATH = os.getenv(
 N_CTX        = 8192     # context window (model supports 131072, 8192 is practical sweet spot)
 N_THREADS    = 4        # less CPU pressure since GPU handles inference
 N_GPU_LAYERS = 32       # full model on GPU — drop to 20 if it crashes
-TEMPERATURE  = 0.85  # slightly higher — more creative phrasing
-TOP_P        = 0.92
+TEMPERATURE  = 0.72  # balanced — creative but consistent
+TOP_P        = 0.88  # tighter sampling — more focused
 TOP_K        = 40
-MAX_TOKENS   = 120   # short and sharp — butler does not ramble
-REPEAT_PENALTY = 1.1
+MAX_TOKENS   = 150   # slightly more room for elegant phrasing
+REPEAT_PENALTY = 1.15  # reduces repetitive phrasing
 
 # ── Language ─────────────────────────────────────────────────
 # Hindi percentage in text output (0 = pure English, 100 = pure Hindi)
@@ -28,7 +28,7 @@ MAX_HISTORY  = 20       # conversation turns to keep in context
 MEMORY_FILE  = "nemesis_memory.json"
 
 # ── Personality ──────────────────────────────────────────────
-MASTER_NAME  = "Lord"  # primary address — alternates with "Sir" based on context
+MASTER_NAME  = "My Lord"  # primary address — alternates with "Sir" based on context
 NEMESIS_NAME = "Nemesis"
 
 # ── Router thresholds ────────────────────────────────────────

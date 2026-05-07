@@ -145,12 +145,20 @@ def main():
     nemesis_name = get_current_name()
     master_addr  = get_current_master_address()
 
-    print(f"""
-╔══════════════════════════════════════════╗
-║           N E M E S I S                  ║
-║     Your butler awaits, {master_addr:<16}║
-╚══════════════════════════════════════════╝
-    """)
+    line1 = "N E M E S I S"
+    line2 = f"Your butler awaits, {master_addr}"
+    width = 42
+    def center_line(text, w):
+        pad = w - len(text) - 2
+        left = pad // 2
+        right = pad - left
+        return "║" + " " * left + text + " " * right + "║"
+    print("")
+    print("╔" + "═" * width + "╗")
+    print(center_line(line1, width + 2))
+    print(center_line(line2, width + 2))
+    print("╚" + "═" * width + "╝")
+    print("")
 
     memory = NemesisMemory()
     brain  = NemesisBrain()

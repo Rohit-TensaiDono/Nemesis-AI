@@ -10,7 +10,7 @@ from config import (
     TEMPERATURE, TOP_P, TOP_K, MAX_TOKENS, REPEAT_PENALTY
 )
 
-# Openings that break character — strip and rebuild
+# Openings that break character
 BAD_OPENINGS = [
     r"^(Sir|My Lord),?\s+I am ",
     r"^I am ",
@@ -28,32 +28,36 @@ BAD_OPENINGS = [
 GOOD_REPLACEMENTS = [
     "Nemesis, My Lord — ",
     "Your butler, Sir — ",
-    "Nemesis. My Lord — ",
     "Nothing but My Lord's butler — ",
-    "Your servant, Sir — ",
+    "At your disposal, Sir — ",
 ]
 
 import random
 
+
 def clean_response(text: str) -> str:
-    """
-    Post-process response to fix character-breaking openings.
-    If the model opens with 'I am' or similar — rewrite the opening.
-    """
-    stripped = text.strip()
+    """Post-process: fix bad openings, strip quotes and action markers."""
+    cleaned = text.strip()
 
+    # Remove surrounding single or double quotes
+    if len(cleaned) >= 2:
+        if (cleaned[0] == cleaned[-1]) and cleaned[0] in ('"', "'"):
+            cleaned = cleaned[1:-1].strip()
+
+    # Remove *action markers* like *bows* or *smiles*
+    cleaned = re.sub(r'\*[^*]+\*', '', cleaned).strip()
+
+    # Fix bad openings
     for pattern in BAD_OPENINGS:
-        if re.match(pattern, stripped, re.IGNORECASE):
-            # Remove the bad opening
-            cleaned = re.sub(pattern, "", stripped, flags=re.IGNORECASE)
-            # Capitalize first letter of remainder
-            if cleaned:
-                cleaned = cleaned[0].upper() + cleaned[1:]
-            # Prepend a good opening
+        if re.match(pattern, cleaned, re.IGNORECASE):
+            remainder = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+            if remainder:
+                remainder = remainder[0].upper() + remainder[1:]
             replacement = random.choice(GOOD_REPLACEMENTS)
-            return replacement + cleaned
+            cleaned = replacement + remainder
+            break
 
-    return stripped
+    return cleaned
 
 
 class NemesisBrain:
@@ -71,7 +75,7 @@ class NemesisBrain:
     def think(
         self,
         system_prompt: str,
-        history: list[dict],
+        history: list,
         user_message: str,
         stream: bool = True
     ) -> str:
@@ -84,12 +88,9 @@ class NemesisBrain:
         else:
             return self._complete(messages)
 
-    def _stream(self, messages: list[dict]) -> str:
-        """Stream tokens, post-process when complete."""
+    def _stream(self, messages: list) -> str:
         full_response = ""
-        tokens = []
 
-        # Collect all tokens first for post-processing
         for chunk in self.llm.create_chat_completion(
             messages=messages,
             temperature=TEMPERATURE,
@@ -101,17 +102,13 @@ class NemesisBrain:
         ):
             delta = chunk["choices"][0]["delta"].get("content", "")
             if delta:
-                tokens.append(delta)
                 full_response += delta
 
-        # Post-process
         cleaned = clean_response(full_response)
-
-        # Print cleaned response
         print(f"\nNemesis: {cleaned}\n")
         return cleaned
 
-    def _complete(self, messages: list[dict]) -> str:
+    def _complete(self, messages: list) -> str:
         result = self.llm.create_chat_completion(
             messages=messages,
             temperature=TEMPERATURE,
